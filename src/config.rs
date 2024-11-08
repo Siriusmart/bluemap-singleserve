@@ -16,8 +16,10 @@ pub struct MasterConfig {
     pub bluemap_web: PathBuf,
     #[serde_inline_default(PathBuf::from("bluemap.jar"))]
     pub bluemap_jar: PathBuf,
-    #[serde_inline_default(PathBuf::from("artifacts"))]
-    pub artifacts: PathBuf,
+    #[serde_inline_default(PathBuf::from("maps"))]
+    pub maps: PathBuf,
+    #[serde_inline_default(PathBuf::from("templates"))]
+    pub templates: PathBuf,
 }
 
 impl Config for MasterConfig {
@@ -46,7 +48,7 @@ where
     }
 
     fn save(&self) {
-        let content = serde_json::to_vec(&self).unwrap();
+        let content = serde_json::to_vec_pretty(&self).unwrap();
         let path = Self::path();
 
         if !path.parent().unwrap().exists() {
@@ -85,6 +87,11 @@ where
     }
 
     fn get() -> &'static Self {
-        Self::oncelock().get().unwrap()
+        if let Some(config) = Self::oncelock().get() {
+            config
+        } else {
+            Self::load();
+            Self::get()
+        }
     }
 }
