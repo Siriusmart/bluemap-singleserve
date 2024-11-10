@@ -107,7 +107,7 @@ impl Map {
     pub async fn exists(map_path: &Path) -> bool {
         fs::try_exists(map_path.join("settings.json"))
             .await
-            .unwrap()
+            .unwrap_or(false)
     }
 
     pub async fn render(
