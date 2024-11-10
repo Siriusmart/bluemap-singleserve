@@ -82,7 +82,7 @@ impl Display for MapError {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub enum Dimension {
     Overworld,
     Nether,
@@ -281,7 +281,6 @@ impl Map {
         let _ = fs::remove_file(conf).await;
 
         if !bluemap.status.success() {
-            println!("{}", String::from_utf8(bluemap.stdout).unwrap());
             let _ = fs::remove_dir_all(rendered).await;
             return Err(MapError::RenderingFiled.into());
         }
