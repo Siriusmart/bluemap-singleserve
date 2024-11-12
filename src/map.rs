@@ -17,11 +17,10 @@ use tokio::sync::broadcast::{channel, Sender};
 
 use crate::{Config, MasterConfig};
 
-// source - destination - template - dimension
+// source - destination - template
 #[allow(clippy::type_complexity)]
-static mut LOCKS: OnceLock<
-    HashMap<(PathBuf, PathBuf, PathBuf, Dimension), Sender<Result<(), MapError>>>,
-> = OnceLock::new();
+static mut LOCKS: OnceLock<HashMap<(PathBuf, PathBuf, PathBuf), Sender<Result<(), MapError>>>> =
+    OnceLock::new();
 
 #[allow(non_snake_case)]
 #[serde_inline_default]
@@ -110,18 +109,12 @@ impl Map {
             .unwrap_or(false)
     }
 
-    pub async fn render(
-        source: &Path,
-        dest: &Path,
-        template: &Path,
-        dimension: Dimension,
-    ) -> Result<(), MapError> {
+    pub async fn render(source: &Path, dest: &Path, template: &Path) -> Result<(), MapError> {
         let locks = Self::locks();
         let key = (
             source.to_path_buf(),
             dest.to_path_buf(),
             template.to_path_buf(),
-            dimension,
         );
 
         if let Some(tx) = locks.get(&key) {
@@ -136,7 +129,7 @@ impl Map {
         let channel = channel(1).0;
         locks.insert(key.clone(), channel.clone());
 
-        let res = match Self::render_internal(source, dest, template, dimension).await {
+        let res = match Self::render_internal(source, dest, template).await {
             Ok(res) => Ok(res),
             Err(e) => {
                 if let Some(e) = e.downcast_ref::<MapError>() {
@@ -156,9 +149,7 @@ impl Map {
     }
 
     #[allow(clippy::type_complexity)]
-    fn locks(
-    ) -> &'static mut HashMap<(PathBuf, PathBuf, PathBuf, Dimension), Sender<Result<(), MapError>>>
-    {
+    fn locks() -> &'static mut HashMap<(PathBuf, PathBuf, PathBuf), Sender<Result<(), MapError>>> {
         if let Some(locks) = unsafe { LOCKS.get_mut() } {
             locks
         } else {
@@ -171,7 +162,6 @@ impl Map {
         source: &Path,
         dest: &Path,
         template: &Path,
-        dimension: Dimension,
     ) -> Result<(), Box<dyn Error>> {
         if fs::try_exists(dest).await? {
             return Err(MapError::DestinationExist.into());
@@ -240,7 +230,6 @@ impl Map {
             Err(_e) => return Err(MapError::ConfigTemplateNotFound.into()),
         }
         .replacen("%world%", temp_zip.with_extension("").to_str().unwrap(), 1)
-        .replacen("%dimension%", dimension.to_string().as_str(), 1)
         .replacen("%name%", dest.file_name().unwrap().to_str().unwrap(), 1);
 
         let conf = master
